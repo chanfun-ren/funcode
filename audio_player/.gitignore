@@ -1,0 +1,8 @@
+# 编译生成文件目录
+build/
+
+# 本地测试音乐列表
+MusicB/
+
+# 本地 vscode 配置
+.vscode
