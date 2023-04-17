@@ -1,2 +1,9 @@
 # ignore executeable file
-a.out
+**/a.out
+
+# ignore .vscode
+**/.vscode
+
+# ignore build
+**/build
+
