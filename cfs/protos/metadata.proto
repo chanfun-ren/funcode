@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package cfs;
+
+
+// used for StatReply, FileNode
+message FileMeta {
+    string file_path = 1;
+    uint64 file_size = 2;
+    // TODO: last access time; last modified time; owner; etc.
+}

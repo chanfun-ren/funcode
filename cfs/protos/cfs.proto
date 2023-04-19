@@ -1,0 +1,257 @@
+syntax = "proto3";
+
+package cfs.rpc;
+// TODO: modify this filename
+import "metadata.proto";
+
+service MasterService {
+    // client -> master rpcs
+    // -------------------
+    
+    // FindAddr(): client send the filename, get the chunk_handles and the addr. 
+    rpc FindLocation(FindLocationRequest) returns (FindLocationReply) {} 
+    
+    // for client's API-Put() usage
+    // master tells the client which chunkservers to write to 
+    rpc GetWriteLocation(GetWriteLocationRequest) returns (GetWriteLocationReply) {} 
+
+    // Stat(): client send the filename, get the file existence, path and size information
+    rpc Stat(StatRequest) returns (StatReply) {} 
+
+    rpc List(ListRequest) returns (ListReply) {}
+
+    rpc Rename(RenameRequest) returns (RenameReply) {}
+
+    rpc Mkdir(MkdirRequest) returns (MkdirReply) {}
+
+    rpc Delete(DeleteRequest) returns (DeleteReply) {}
+    
+    // rpc Put(PutRequest) returns (PutReply) {}
+    
+    // for client's API-List() usage.
+    rpc GetAllPaths(GetAllPathsRequest) returns (GetAllPathsReply) {}
+}
+
+enum RCode {
+    OK = 0;
+    FILE_NOTFOUND = 1;
+    FILE_EXIST = 2;
+}
+
+
+// // used for StatReply, FileNode
+// message FileMeta {
+//     string file_path = 1;
+//     uint64 file_size = 2;
+//     // TODO: last access time; last modified time; owner; etc.
+// }
+
+message ChunkServerLocation {
+    string hostname = 1;
+    uint32 port = 2;
+}
+
+message ChunkInfo {
+    // Each chunk corresponds to a unique chunkhandle.
+    uint64 chunk_handle = 1;
+
+    // Multiple replicas of a chunk are distributed across multiple chunk servers.
+    repeated ChunkServerLocation replica_addrs = 2;
+}
+
+// cli2master: rpc FindAddr()
+message FindLocationRequest {
+    string file_path = 1;
+}
+message FindLocationReply {
+    RCode ret_code = 1;
+    repeated ChunkInfo chunks_info = 2;
+}
+
+// cli2master: rpc GetWriteAddr()
+
+// message PutRequest {
+//     string file_path = 1;
+//     int64 file_size = 2;
+// }
+
+// message PutReply {
+//     RCode ret_code = 1;
+//     repeated ChunkInfo chunks_locations = 2;
+// }
+
+
+message GetWriteLocationRequest {
+    // `file_path`: name of the file to be written by the client
+    // `write_data_size`: the size of the data to be written by the client
+    string file_path = 1;
+    uint64 write_data_size = 2;
+}
+
+message GetWriteLocationReply {
+    // 思考：如何解决将一个文件的若干部分映射到若干 chunk_handle 的问题
+    // 一种简单貌似可行的方法是：按顺序然后依据 CHUNKSIZE 将文件切分
+    // 成若干 chunk。chunk_handles 数组也即对应着切分分配的 chunk 顺序。
+    RCode ret_code = 1;
+    repeated ChunkInfo chunks_locations = 2;
+}
+
+// cli2master: rpc GetAllPaths()
+message GetAllPathsRequest {
+    string dir_path = 1;
+}
+
+message GetAllPathsReply {
+    RCode ret_code = 1;
+    repeated string file_paths = 2;
+}
+
+// cli2master: rpc Mkdir()
+message MkdirRequest {
+    string dir_path = 1;
+}
+message MkdirReply {
+    RCode ret_code = 1;
+}
+
+// cli2master: rpc Rename()
+message RenameRequest {
+    string src_path = 1;
+    string des_path = 2;
+}
+message RenameReply {
+    RCode ret_code = 1;
+}
+
+// cli2master: rpc Delete()
+message DeleteRequest {
+    string remote_file_path = 1;
+}
+message DeleteReply {
+    RCode ret_code = 1;
+}
+
+// cli2master: rpc Stat()
+message StatRequest {
+    string file_path = 1;
+}
+message StatReply {
+    RCode ret_code = 1;
+    FileMeta file_meta = 2;
+}
+
+message ListRequest {
+    string dir_path = 1;
+}
+message ListReply {
+    RCode ret_code = 1;
+    repeated FileMeta files_meta = 2;
+}
+
+
+service ChunkServerManagerService {
+    // chunkserver -> chunkserver_manager rpcs
+    // --------------------------
+
+    rpc Register(RegisterRequest) returns (RegisterReply) {}
+    
+    rpc UnRegister(UnRegisterRequest) returns (UnRegisterReply) {}
+ 
+    // Merged into Heartbeat
+    // rpc ReportStatistic(ReportStatisticRequest) returns (ReportStatisticReply) {} 
+
+    rpc HeartBeat(HeartBeatRequest) returns (HeartBeatReply) {}
+}
+
+message RegisterRequest {
+    ChunkServerLocation chunk_server_location = 1;
+}
+
+message RegisterReply {
+    uint64 server_id = 1;
+}
+
+message UnRegisterRequest {
+    uint64 server_id = 1;
+    ChunkServerLocation chunk_server_location = 2;
+}
+
+message UnRegisterReply {
+
+}
+
+message ChunkServerStatisticInfo {
+  repeated uint64 chunk_handles = 1;
+  uint64 used_bytes = 2;
+  uint64 available_bytes = 3;
+  // string addr = 4;
+  ChunkServerLocation chunk_server_location = 4;
+  // TODO: total_capacity_size, stored_path, w/r_rate, w/r_iops
+}
+
+message HeartBeatRequest {
+    uint64 server_id = 1;
+    ChunkServerStatisticInfo statistic_info = 2;
+}
+
+message HeartBeatReply {
+    
+}
+
+
+
+// ---------------------------------------------------------------------------------------------------------------
+
+
+// --------------------------------------------------------------------------------------------------------------- 
+service ChunkServerService {
+    // client -> chunk_server rpcs
+    // --------------------------
+    
+    // ReadChunk(): client send the read request, get the file data.
+    rpc ReadChunk(ReadChunkRequest) returns (ReadChunkReply) {}
+    
+    //  WriteChunk(): client send the write request contains the data.
+    rpc WriteChunk(WriteChunkRequest) returns (WriteChunkReply) {}
+}
+
+// cli2chunkserver: rpc ReadChunk()
+message ReadChunkRequest {
+    // at the chunk identified by `chunkhandle`, 
+    // from the `offset` pos, read `length` bytes.
+    int64 chunk_handle = 1;
+    uint32 offset = 2;
+    uint32 length = 3;
+}
+message ReadChunkReply {
+    // `data`: the file data.
+    // `bytes_read`: data length.
+    string data = 1;
+    uint32 bytes_read = 2;
+	uint32 check_sum = 3;
+}
+
+// message ChunkInfo {
+//   int64 chunk_handle = 1;
+//   uint32 offset = 2;    // start write addrs-> implictly max chunk_size: 2^32 bytes.
+//   uint32 length = 3;    // write data's length.
+//   repeated string locations = 4;    // addrs where the replicas are
+//   uint32 check_sum = 5;
+// }
+
+message Chunk {
+	ChunkInfo chunk_info = 1;
+	bytes data = 2;
+}
+// Write Chunk Request
+message WriteChunkRequest {
+  int64 client_id = 1;
+  Chunk chunk = 2;
+}
+
+message WriteChunkReply {
+  uint32 bytes_written = 2;       // `bytes_written`: data written length.
+}
+
+
+

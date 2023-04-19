@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package cfs;
+
+message ChunkServerStatisticInfo {
+  repeated uint64 chunk_handles = 1;
+  uint64 used_bytes = 2;
+  uint64 available_bytes = 3;
+  string addr = 4;
+  // TODO: total_capacity_size, stored_path, w/r_rate, w/r_iops
+}

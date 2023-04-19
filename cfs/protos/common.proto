@@ -1,0 +1,6 @@
+
+enum RCode {
+    OK = 0;
+    FILE_NOTFOUND = 1;
+    FILE_EXIST = 2;
+}
