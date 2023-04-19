@@ -4,8 +4,8 @@
 #include <string>
 #include <vector>
 
-#include "command.h"
 #include "kv_store.h"
+#include "protocol.h"
 #include "status.h"
 
 using namespace ckv;

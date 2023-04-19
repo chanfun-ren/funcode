@@ -3,7 +3,8 @@
 #include "serialize.h"
 
 namespace ckv {
-KvStore::KvStore(std::string_view path) : path_(std::string(path)) {
+KvStore::KvStore(std::string_view path)
+    : path_(std::string(path)), uncompacted_size_(0) {
   Status status = Open();
   if (!status.isOk()) {
     std::cerr << "Database initialization failed" << std::endl;
@@ -158,6 +159,7 @@ Status KvStore::MaybeCompact() {
   if (uncompacted_size_ <= COMPACTION_THRESHOLD) {
     return Status::Ok();
   }
+  std::cout << "uncompacted_size_: " << uncompacted_size_ << "\n";
 
   // Scan log file and record the latest log entry for each key
   // use index_ directly?

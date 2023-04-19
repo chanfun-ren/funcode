@@ -12,7 +12,8 @@ enum StatusCode {
   kCorruption = 2,
   kNotSupported = 3,
   kInvalidArgument = 4,
-  kIOError = 5
+  kIOError = 5,
+  kNetworkError = 6
 };
 
 class Status {
@@ -25,6 +26,7 @@ class Status {
 
   bool isNotFound() const { return code_ == kNotFound; }
 
+  // or DataFormatError
   bool isCorruption() const { return code_ == kCorruption; }
 
   bool isNotSupported() const { return code_ == kNotSupported; }
@@ -32,6 +34,8 @@ class Status {
   bool isInvalidArgument() const { return code_ == kInvalidArgument; }
 
   bool isIOError() const { return code_ == kIOError; }
+
+  bool isNetworkError() const { return code_ == kNetworkError; }
 
   StatusCode code() const { return code_; }
 
@@ -59,16 +63,19 @@ class Status {
     return Status(kIOError, msg);
   }
 
-  // 重载 == 运算符
+  static Status NetworkError(const std::string& msg) {
+    return Status(kNetworkError, msg);
+  }
+
   bool operator==(const Status& other) const {
     return code_ == other.code_ && msg_ == other.msg_;
   }
 
-  // 重载 != 运算符
   bool operator!=(const Status& other) const { return !(*this == other); }
 
  private:
   StatusCode code_;
   std::string msg_;
 };
+
 }  // namespace ckv

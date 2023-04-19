@@ -22,6 +22,7 @@ target_include_directories(mem_kv_test PRIVATE ${PROJECT_SOURCE_DIR}/include)
 target_link_libraries(
   mem_kv_test
   GTest::gtest_main
+  common
 )
 
 
@@ -34,6 +35,7 @@ target_include_directories(wal_mem_index_test PRIVATE ${PROJECT_SOURCE_DIR}/incl
 target_link_libraries(
   wal_mem_index_test
   GTest::gtest_main
+  common
 )
 
 
@@ -46,8 +48,20 @@ target_include_directories(compact_test PRIVATE ${PROJECT_SOURCE_DIR}/include)
 target_link_libraries(
   compact_test
   GTest::gtest_main
+  common
+)
+
+add_executable(
+  serialize_test
+  serialize_test.cc
+)
+target_include_directories(serialize_test PRIVATE ${PROJECT_SOURCE_DIR}/include)
+target_link_libraries(
+  serialize_test
+  GTest::gtest_main
+  common
 )
 
 
 include(GoogleTest)
-gtest_discover_tests(mem_kv_test wal_mem_index compact_test)
+gtest_discover_tests(mem_kv_test wal_mem_index compact_test serialize_test)

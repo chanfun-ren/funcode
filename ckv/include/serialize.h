@@ -1,34 +1,23 @@
-namespace ckv {
-std::string serialize(Command cmd) {
-  std::string log_entry;
-  switch (cmd.type) {
-    case CommandType::SET: {
-      log_entry = cmd.key + " " + cmd.value + "\n";
-      break;
-    }
-    case CommandType::RM: {
-      std::string empty_value = "";
-      log_entry = cmd.key + " " + empty_value + "\n";
-      break;
-    }
-  }
-  return log_entry;
-}
+#pragma once
 
-Command deserialize(std::string line) {
-  auto pos = line.find(' ');
-  if (pos == std::string::npos) {
-    return Command{CommandType::INVALID, "", ""};
-  }
-  if (pos == line.size() - 1) {
-    // `rm` command log entry
-    std::string key = line.substr(0, pos);
-    return Command{CommandType::RM, key, ""};
-  } else {
-    // `set` command log entry
-    std::string key = line.substr(0, pos);
-    std::string value = line.substr(pos + 1);
-    return Command{CommandType::SET, key, value};
-  }
-}
+#include "protocol.h"
+
+namespace ckv {
+
+//------------------- kv_store log usage -------------------------/
+std::string serialize(Command cmd);
+Command deserialize(std::string line);
+//----------------------------------------------------------------/
+
+//------------------- Command network usag------------------------/
+// INVALID command should not be serialized/deserialized
+int serialize(const Command& cmd, std::string& out);
+int deserialize(const std::string& in, Command& cmd);
+//----------------------------------------------------------------/
+
+//------------------- Response network usag------------------------/
+int serialize(const Response& resp, std::string& str);
+int deserialize(const std::string& str, Response& resp);
+//----------------------------------------------------------------/
+
 }  // namespace ckv

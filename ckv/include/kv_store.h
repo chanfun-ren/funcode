@@ -2,14 +2,14 @@
 #include <filesystem>
 #include <unordered_map>
 
-#include "command.h"
+#include "protocol.h"
 #include "status.h"
 
 // Define struct to represent a log entry pos
 namespace ckv {
 
-// constexpr std::size_t COMPACTION_THRESHOLD = 1024 * 1024;  // 1MB
-constexpr std::size_t COMPACTION_THRESHOLD = 10;  // 10 bytes
+constexpr std::size_t COMPACTION_THRESHOLD = 1024 * 1024;  // 1MB
+// constexpr std::size_t COMPACTION_THRESHOLD = 10;  // 10 bytes
 
 struct LogEntryPos {
   std::size_t offset;
