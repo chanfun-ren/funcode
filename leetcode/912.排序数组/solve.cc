@@ -22,16 +22,16 @@ class Solution {
     sort(v, begin, it - 1);
     sort(v, it + 1, end);
   }
+
   int partition(vector<int>& nums, int left, int right) {
-    int pivot = nums[left];
-    int i = left, j = right;
-    while (i < j) {
-      while (i < j && nums[j] >= pivot) j--;
-      nums[i] = nums[j];
-      while (i < j && nums[i] <= pivot) i++;
-      nums[j] = nums[i];
+    int pivot = nums[right];
+    int i = left;
+    for (int j = left; j < right; ++j) {
+      if (nums[j] <= pivot) {
+        std::swap(nums[i++], nums[j]);
+      }
     }
-    nums[i] = pivot;
+    std::swap(nums[i], nums[right]);
     return i;
   }
 };
@@ -46,7 +46,7 @@ void print_vec(const vector<T>& v) {
 
 int main() {
   Solution s;
-  vector v = {4, 2, 3, 1};
+  vector v = {4, 2, 123, 989, 73, 89, 3, 1};
   print_vec(v);
   auto res = s.sortArray(v);
   print_vec(res);
