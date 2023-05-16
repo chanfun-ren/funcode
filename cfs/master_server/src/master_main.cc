@@ -3,6 +3,7 @@
 #include <grpcpp/grpcpp.h>
 #include <grpcpp/health_check_service_interface.h>
 
+#include "chunk_server_manager.h"
 #include "master_service.h"
 
 using grpc::Server;
@@ -13,8 +14,11 @@ void RunServer(const std::string &server_address) {
   ServerBuilder builder;
   builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
 
-  cfs::rpc::MasterServiceImpl mastet_service;
-  builder.RegisterService(&mastet_service);
+  cfs::rpc::MasterServiceImpl master_service;
+  builder.RegisterService(&master_service);
+
+  cfs::rpc::ChunkServerManagerServiceImpl chunkserver_manager_service;
+  builder.RegisterService(&chunkserver_manager_service);
 
   std::unique_ptr<Server> server = builder.BuildAndStart();
 

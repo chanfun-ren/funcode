@@ -12,7 +12,7 @@ list(APPEND CMAKE_PREFIX_PATH "/root/grpc_install_pos/")
 # add_subdirectory(common)
 add_subdirectory(master_server)
 add_subdirectory(protos)
-# add_subdirectory(chunk_server)
+add_subdirectory(chunk_server)
 add_subdirectory(client)
 add_subdirectory(test)
 

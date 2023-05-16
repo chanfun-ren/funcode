@@ -119,11 +119,12 @@ void Client::List(const std::string& dir_path) const {
   spdlog::trace("{} {} done", __func__, dir_path);
 }
 
-void Client::Get(const std::string& file_path) const {
+void Client::Get(const std::string& remote_file_path,
+                 const std::string& local_file_path) const {
   FindLocationRequest req;
   FindLocationReply reply;
   ClientContext ctx;
-  req.set_file_path(file_path);
+  req.set_file_path(remote_file_path);
   Status status = cli_master_stub_->FindLocation(&ctx, req, &reply);
   CHECK_STATUS("FindLocation", status);
 
@@ -132,22 +133,23 @@ void Client::Get(const std::string& file_path) const {
     // 向 chunk_server 发起请求
     for (const ChunkInfo& chunk_info : reply.chunks_info()) {
       uint64_t handle = chunk_info.chunk_handle();
-      for (ChunkServerLocation& server : chunk_info.replica_addrs()) {
+      for (const ChunkServerLocation& server : chunk_info.replica_addrs()) {
         std::cout << server.hostname() << ": " << server.port() << "\t";
-        // TODO: Read Chunk
+        // TODO: Read Chunk -> store file locally
       }
     }
   } else if (reply.ret_code() == RCode::FILE_NOTFOUND) {
-    std::cout << file_path << " No such file.\n";
+    std::cout << remote_file_path << " No such file.\n";
   }
 }
 
-void Client::Put(const std::string& file_path) const {
-  size_t file_size = GetFileSize(file_path);
+void Client::Put(const std::string& remote_file_path,
+                 const std::string& local_file_path) const {
+  size_t file_size = GetFileSize(local_file_path);
   GetWriteLocationRequest req;
   GetWriteLocationReply reply;
   ClientContext ctx;
-  req.set_file_path(file_path);
+  req.set_file_path(remote_file_path);
   req.set_write_data_size(file_size);
   Status status = cli_master_stub_->GetWriteLocation(&ctx, req, &reply);
   CHECK_STATUS("GetWriteLocation", status);
@@ -155,15 +157,17 @@ void Client::Put(const std::string& file_path) const {
   if (reply.ret_code() == RCode::OK) {
     // 解析出各个 Chunk 的 handles, chunk_server_locations 信息(ChunkInfo)
     // 向 chunk_server 发起请求
-    for (ChunkInfo& chunk_info : reply.chunks_info()) {
+    std::cout << "prepare write to: \n";
+    for (const ChunkInfo& chunk_info : reply.chunks_infos()) {
       uint64_t handle = chunk_info.chunk_handle();
-      for (ChunkServerLocation& server : chunk_info.replica_addrs()) {
-        std::cout << server.hostname() << ": " << server.port() << "\t";
+      for (const ChunkServerLocation& server : chunk_info.replica_addrs()) {
+        std::cout << server.hostname() << ": " << server.port() << "\n";
         // TODO: Write Chunk.
       }
     }
+
   } else if (reply.ret_code() == RCode::FILE_EXIST) {
-    std::cout << file_path << " already exists.\n";
+    std::cout << remote_file_path << " already exists.\n";
   }
 }
 
