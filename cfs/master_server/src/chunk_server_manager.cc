@@ -2,6 +2,7 @@
 
 namespace cfs {
 
+namespace rpc {
 uint64_t ChunkServerManagerServiceImpl::GenUniqueServerID() {
   return server_id_.fetch_add(1);
 }
@@ -10,34 +11,47 @@ Status ChunkServerManagerServiceImpl::Register(ServerContext* context,
                                                const RegisterRequest* request,
                                                RegisterReply* response) {
   ChunkServerLocation chunk_server = request->chunk_server_location();
-  std::string ip = chunk_server.hostname();
-  std::string port = std::to_string(chunk_server.port());
-  std::string location = (ip + port);
-  if (!chunk_servers_.count(location)) {
-    chunk_servers_[location] = GenUniqueServerID();
+
+  for (const auto& server : servers_) {
+    if (server.location.hostname() == chunk_server.hostname() &&
+        server.location.port() == chunk_server.port()) {
+      // already registered, return the existing server ID
+      response->set_server_id(server.id);
+      return Status::OK;
+    }
   }
-  // already registered.
-  response->set_server_id(chunk_servers_[location]);
+
+  // generate a new server ID and register the chunk server
+  uint64_t id = GenUniqueServerID();
+  response->set_server_id(id);
+  servers_.push_back({id, std::time(nullptr), ChunkServerStatisticInfo(),
+                      chunk_server});  // TODO: `ChunkServerStatisticInfo()`
   return Status::OK;
 }
 
 Status ChunkServerManagerServiceImpl::UnRegister(
     ServerContext* context, const UnRegisterRequest* request,
     UnRegisterReply* response) {
-  ChunkServerLocation chunk_server = request->chunk_server_location();
-  std::string ip = chunk_server.hostname();
-  std::string port = std::to_string(chunk_server.port());
-  std::string location = (ip + port);
+  ChunkServerLocation chunk_server_addr = request->chunk_server_location();
   uint64_t id = request->server_id();
-  if (chunk_servers_.count(location)) {
-    if (chunk_servers_[location] != id) {
-      // chunk_server 传送过来的 server_id 与 manager 此前分配的不一致
-      // 拒绝注销
-    } else {
-      // 校验成功. => 移除 chunk_server 信息
-      chunk_servers_.erase(location);
-      chunk_server_info_.erase(id);
-    }
+
+  auto it = std::find_if(
+      servers_.begin(), servers_.end(),
+      [&chunk_server_addr](const ChunkServerItem& server) {
+        return server.location.hostname() == chunk_server_addr.hostname() &&
+               server.location.port() == chunk_server_addr.port();
+      });
+  if (it == servers_.end()) {
+    // not registered
+    return Status::OK;
+  }
+  if (it->id != id) {
+    // server ID does not match, reject the unregister request
+    // 校验失败，拒绝注销
+    // TODO:
+  } else {
+    // unregister the chunk server
+    servers_.erase(it);
   }
   return Status::OK;
 }
@@ -46,17 +60,54 @@ Status ChunkServerManagerServiceImpl::HeartBeat(ServerContext* context,
                                                 const HeartBeatRequest* request,
                                                 HeartBeatReply* response) {
   uint64_t id = request->server_id();
-  if (chunk_servers_.count(id)) {
+  std::cout << "server_id: " << id << "\n";
+  ChunkServerStatisticInfo chunk_server_info = request->statistic_info();
+  // 输出 chunk_server_info 对象的内容
+  /*
+  std::cout << "chunk_handles:";
+  for (int i = 0; i < chunk_server_info.chunk_handles_size(); i++) {
+    std::cout << " " << chunk_server_info.chunk_handles(i);
+  }
+  std::cout << std::endl;
+  std::cout << "used_bytes: " << chunk_server_info.used_bytes() << std::endl;
+  std::cout << "available_bytes: " << chunk_server_info.available_bytes()
+            << std::endl;
+  std::cout << "chunk_server_location: "
+            << chunk_server_info.chunk_server_location().hostname() << ":"
+            << chunk_server_info.chunk_server_location().port() << std::endl;
+  */
+
+  auto it = std::find_if(
+      servers_.begin(), servers_.end(),
+      [&id](const ChunkServerItem& server) { return server.id == id; });
+  if (it != servers_.end()) {
     // still alive => update the timestamp; update its statistic
-    server_last_alive_time_[id] = time(nullptr);
-    chunk_server_info_[id] = request->statistic_info();
+    it->server_last_alive_time = time(nullptr);
+    it->chunk_server_info = request->statistic_info();
   } else {
     // TODO: tell the chunkserver it was offline.
   }
   return Status::OK;
 }
 
-void ChunkServerManagerServiceImpl::AllocateChunkForHandle(
+std::vector<ChunkServerLocation>
+ChunkServerManagerServiceImpl::GetTopKChunkServerLocations(int k) {
+  std::vector<ChunkServerItem> sorted_servers = servers_;
+  std::sort(sorted_servers.begin(), sorted_servers.end(),
+            [](const ChunkServerItem& a, const ChunkServerItem& b) {
+              return a.chunk_server_info.available_bytes() >
+                     b.chunk_server_info.available_bytes();
+            });
+
+  std::vector<ChunkServerLocation> top_k_locations;
+  for (int i = 0; i < k && i < sorted_servers.size(); i++) {
+    top_k_locations.push_back(sorted_servers[i].location);
+  }
+  return top_k_locations;
+}
+
+/*
+void ChunkServerManagerServiceImpl::AllocateServerForHandle(
     const std::vector<int64_t>& chunk_handles, int replica_num = REPLICANUM) {
   // If the chunk_handles size is N, then we should allocate N * REPLICANUM
   // handles to X chunk_servers, and every of the X chunk_servers has no
@@ -88,23 +139,24 @@ void ChunkServerManagerServiceImpl::AllocateChunkForHandle(
       auto max_chunkserver = chunk_server_info_.end();
       for (auto it = chunk_server_info_.begin(); it != chunk_server_info_.end();
            ++it) {
-        if (it->second.size_available_bytes() > max_available_size) {
+        if (it->second.available_bytes() > max_available_size) {
           max_chunkserver = it;
-          max_available_size = it->second.size_available_bytes();
+          max_available_size = it->second.available_bytes();
         }
       }
       ChunkServerStatisticInfo& server_info = max_chunkserver->second;
       server_info.add_chunk_handles(chunk_handles[i]);
-      uint64_t current_size = server_info.size_available_bytes();
+      uint64_t current_size = server_info.available_bytes();
       server_info.set_available_bytes(current_size - CHUNKSIZE);
       server_info.set_used_bytes(current_size + CHUNKSIZE);
       // TODO: update metadata_manager_->handle_locations_map_;
-      // handle_locations_map_[chunk_handles[i]].push_back(server_info.chunk_server_location());
+      //
+      handle_locations_map_[chunk_handles[i]].push_back(
+          server_info.chunk_server_location());
     }
   }
 }
+*/
 
-ChunkServerManager::ChunkServerManager(/* args */) {}
-
-ChunkServerManager::~ChunkServerManager() {}
+}  // namespace rpc
 }  // namespace cfs

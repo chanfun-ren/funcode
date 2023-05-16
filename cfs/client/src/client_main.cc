@@ -67,6 +67,28 @@ void RunClient() {
         continue;
       }
       std::cout << "Rename Error\n";
+    } else if (cmd == "get") {
+      std::vector<std::string> v;
+      std::string temp;
+      while (line_stream >> temp) {
+        v.push_back(temp);
+      }
+      if (v.size() == 2) {
+        cli.Get(v[0], v[1]);
+        continue;
+      }
+      std::cout << "Get Error\n";
+    } else if (cmd == "put") {
+      std::vector<std::string> v;
+      std::string temp;
+      while (line_stream >> temp) {
+        v.push_back(temp);
+      }
+      if (v.size() == 2) {
+        cli.Put(v[0], v[1]);
+        continue;
+      }
+      std::cout << "Put Error\n";
     } else if (cmd == "help" || cmd == "h") {
       std::cout << "Options:\n"
                 << "\tget\t<remotefilepath>\t<filepath>\n"

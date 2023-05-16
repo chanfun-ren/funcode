@@ -97,7 +97,7 @@ Status MasterServiceImpl::FindLocation(ServerContext *ctx,
     *reply->mutable_chunks_info() = {data.begin(), data.end()};
     reply->set_ret_code(RCode::OK);
   } else {
-    repy->set_ret_code(RCode::FILE_NOTFOUND);
+    reply->set_ret_code(RCode::FILE_NOTFOUND);
   }
   return Status::OK;
 }
@@ -108,14 +108,16 @@ Status MasterServiceImpl::GetWriteLocation(ServerContext *ctx,
   std::string file_path = req->file_path();
   size_t file_size = req->write_data_size();
 
+  // 新建一个文件，更新文件目录树，以及 handles_map 等元数据信息
   std::optional<std::vector<ChunkInfo>> info =
-      metadata_manager_->GetWriteLocation(file_path, file_size);
+      metadata_manager_->Put(file_path, file_size);
+
   if (info.has_value()) {
     std::vector<ChunkInfo> data = info.value();
-    *reply->mutable_chunks_info() = {data.begin(), data.end()};
+    *reply->mutable_chunks_infos() = {data.begin(), data.end()};
     reply->set_ret_code(RCode::OK);
   } else {
-    repy->set_ret_code(RCode::FILE_EXIST);
+    reply->set_ret_code(RCode::FILE_EXIST);
   }
   return Status::OK;
 }

@@ -72,7 +72,7 @@ message FindLocationReply {
 
 // message PutRequest {
 //     string file_path = 1;
-//     int64 file_size = 2;
+//     uint64 file_size = 2;
 // }
 
 // message PutReply {
@@ -93,7 +93,7 @@ message GetWriteLocationReply {
     // 一种简单貌似可行的方法是：按顺序然后依据 CHUNKSIZE 将文件切分
     // 成若干 chunk。chunk_handles 数组也即对应着切分分配的 chunk 顺序。
     RCode ret_code = 1;
-    repeated ChunkInfo chunks_locations = 2;
+    repeated ChunkInfo chunks_infos = 2;
 }
 
 // cli2master: rpc GetAllPaths()
@@ -148,7 +148,7 @@ message ListReply {
     repeated FileMeta files_meta = 2;
 }
 
-
+// -------------------------------------------------------------------
 service ChunkServerManagerService {
     // chunkserver -> chunkserver_manager rpcs
     // --------------------------

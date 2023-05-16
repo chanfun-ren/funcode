@@ -46,8 +46,10 @@ class Client {
   void Mkdir(const std::string& dir_path) const;
   void List(const std::string& dir_path) const;
 
-  void Get(const std::string& file_path) const;
-  void Put(const std::string& file_path) const;
+  void Get(const std::string& remote_file_path,
+           const std::string& local_file_path) const;
+  void Put(const std::string& remote_file_path,
+           const std::string& local_file_path) const;
 
  private:
   size_t GetFileSize(const std::string& file_path) const;

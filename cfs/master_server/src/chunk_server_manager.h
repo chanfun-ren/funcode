@@ -9,14 +9,25 @@
 
 const int REPLICANUM = 3;
 
+using cfs::rpc::ChunkServerLocation;
 using cfs::rpc::ChunkServerStatisticInfo;
+using cfs::rpc::HeartBeatReply;
+using cfs::rpc::HeartBeatRequest;
+using cfs::rpc::RegisterReply;
+using cfs::rpc::RegisterRequest;
+using cfs::rpc::UnRegisterReply;
+using cfs::rpc::UnRegisterRequest;
+
 using grpc::ServerContext;
 using grpc::Status;
 
 namespace cfs {
+namespace rpc {
+
+const int CHUNKSIZE = 1024 * 1024;  // TODO: make it common
 
 class ChunkServerManagerServiceImpl final
-    : public ChunkServerManagerServiceImpl {
+    : public ChunkServerManagerService::Service {
  public:
   Status Register(ServerContext* context, const RegisterRequest* request,
                   RegisterReply* response) override;
@@ -27,39 +38,25 @@ class ChunkServerManagerServiceImpl final
   Status HeartBeat(ServerContext* context, const HeartBeatRequest* request,
                    HeartBeatReply* response) override;
 
- public:
-  void AllocateChunkForHandle(const std::vector<int64_t>& chunk_handles,
-                              int replica_num);
+  // 返回剩余空间最多的 k 个 chunkserver 的 location 信息
+  std::vector<ChunkServerLocation> GetTopKChunkServerLocations(int k);
 
  private:
   uint64_t GenUniqueServerID();
 
  private:
-  // location => server_id
-  std::map<std::string, uint64_t> chunk_servers_;
+  struct ChunkServerItem {
+    uint64_t id;
+    std::time_t server_last_alive_time;
+    ChunkServerStatisticInfo chunk_server_info;
+    ChunkServerLocation location;
+  };
 
-  // stores the alive chunkservers' statistic info
-  std::map<uint64_t, ChunkServerStatisticInfo> chunk_server_info_;
+  std::vector<ChunkServerItem> servers_;
 
-  // stores the chunkserver's last time_stamp
-  std::map<uint64_t, std::time_t> server_last_alive_time_;
-
-  // chunkserver id
+  // generate chunkserver unique id
   std::atomic<int64_t> server_id_{0};
-
-  // sorted container stores the chunkservers' load info.
-  // using IterType = std::map<uint64_t, ChunkServerStatisticInfo>::iterator;
-  // 剩余空间大的 chunkserver 优先
-  // std::set<uint64_t> chunkserver_load_priority_;
-  // return chunk_server_info_[id1].available_bytes() <
-  // chunk_server_info_[id2].available_bytes()
 };
 
-class ChunkServerManager {
- public:
-  ChunkServerManager(/* args */);
-  ~ChunkServerManager();
-
- private:
-};
+}  // namespace rpc
 }  // namespace cfs
